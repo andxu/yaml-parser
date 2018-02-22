@@ -902,6 +902,118 @@ function readPlainScalar(state, nodeIndent, withinFlowCollection) {
 }
 
 function readFlowCollection(state, nodeIndent) {
-    //TODO: support flow
-    return false;
+    let readNext = true,
+        _line,
+        following,
+        terminator,
+        isPair,
+        isExplicitPair,
+        isMapping,
+        keyNode,
+        keyTag,
+        valueNode,
+        _result,
+        colonNode,
+        ch;
+    let startPosition  = state.position;
+    ch = state.input.charCodeAt(state.position);
+
+    if (ch === 0x5B/* [ */) {
+        terminator = 0x5D;/* ] */
+        isMapping = false;
+        _result = {
+            kind: 'SEQ',
+            startPosition: startPosition,
+            items: []
+        }
+    } else if (ch === 0x7B/* { */) {
+        terminator = 0x7D;/* } */
+        isMapping = true;
+        _result = {
+            kind: 'MAPPING',
+            startPosition: startPosition,
+            mappings: []
+        }
+    } else {
+        return false;
+    }
+
+    ch = state.input.charCodeAt(++state.position);
+
+    while (ch !== 0) {
+        skipSeparationSpace(state, true, nodeIndent);
+
+        ch = state.input.charCodeAt(state.position);
+
+        if (ch === terminator) {
+            state.position++;
+            _result.endPosition = state.position;
+            state.nodes.push(_result);
+            return true;
+        } else if (!readNext) {
+            throw new Error('missed comma between flow collection entries');
+        }
+
+        keyNode = valueNode = null;
+        isPair = isExplicitPair = false;
+
+        if (ch === 0x3F/* ? */) {
+            following = state.input.charCodeAt(state.position + 1);
+
+            if (util.is_WS_OR_EOL(following)) {
+                isPair = isExplicitPair = true;
+                state.position++;
+                skipSeparationSpace(state, true, nodeIndent);
+            }
+        }
+        _line = state.line;
+        composeNode(state, nodeIndent, constant.CONTEXT_FLOW_IN, false, true);
+        keyTag = state.tags.pop();
+        keyNode = state.nodes.pop();
+        skipSeparationSpace(state, true, nodeIndent);
+
+        ch = state.input.charCodeAt(state.position);
+
+        if ((isExplicitPair || state.line === _line) && ch === 0x3A/* : */) {
+            isPair = true;
+            ch = state.input.charCodeAt(++state.position);
+            colonNode = newNode(state, 'COLON', state.position - 1);
+            skipSeparationSpace(state, true, nodeIndent);
+            composeNode(state, nodeIndent, constant.CONTEXT_FLOW_IN, false, true);
+            valueNode = state.nodes.pop();
+        }
+        if (isMapping) {
+            _result.mappings.push({
+                key: keyNode,
+                value: valueNode,
+                colon: colonNode
+            });
+        } else if (isPair) {
+            _result.items.push({
+                kind: "MAPPING",
+                startPosition: keyNode.startPosition,
+                endPosition: state.position,
+                mappings: [
+                    {
+                        key: keyNode,
+                        colon: colonNode,
+                        value: valueNode
+                    }
+                ]
+            });
+        } else {
+            _result.items.push(keyNode);
+        }
+
+        skipSeparationSpace(state, true, nodeIndent);
+
+        ch = state.input.charCodeAt(state.position);
+
+        if (ch === 0x2C/* , */) {
+            readNext = true;
+            ch = state.input.charCodeAt(++state.position);
+        } else {
+            readNext = false;
+        }
+    }
 }
