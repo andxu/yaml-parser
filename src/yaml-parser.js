@@ -586,7 +586,7 @@ function readBlockMapping(state, nodeIndent, flowIndent) {
         // Common reading code for both explicit and implicit notations.
         //
         if (state.line === _line || state.lineIndent > nodeIndent) {
-            if (composeNode(state, nodeIndent, CONTEXT_BLOCK_OUT, true, allowCompact)) {
+            if (composeNode(state, nodeIndent, constant.CONTEXT_BLOCK_OUT, true, allowCompact)) {
                 if (atExplicitKey) {
                     keyNode = state.nodes.pop();
                 } else {
@@ -740,7 +740,6 @@ function composeNode(state, parentIndent, nodeContext, allowToSeek, allowCompact
             hasContent = allowBlockCollections && readBlockSequence(state, blockIndent);
         }
     }
-    state.tags = tags;
     return hasContent;
 }
 
