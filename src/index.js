@@ -1,2 +1,2 @@
-import { parse } from "./parser";
+import { parse } from "./yaml-parser";
 export { parse }
