@@ -1,0 +1,27 @@
+{
+  "name": "yaml-parser",
+  "version": "1.0.0",
+  "description": "A yaml parser which converts yaml file to ast.",
+  "main": "index.js",
+  "scripts": {
+    "build": "babel src --out-dir dist"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/andxu/yaml-parser.git"
+  },
+  "author": "andxu",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/andxu/yaml-parser/issues"
+  },
+  "homepage": "https://github.com/andxu/yaml-parser#readme",
+  "devDependencies": {
+    "babel-core": "^6.26.0",
+    "babel-plugin-transform-decorators-legacy": "^1.3.4",
+    "babel-plugin-transform-object-rest-spread": "^6.26.0",
+    "babel-plugin-transform-optional-catch-binding": "^7.0.0-beta.3",
+    "babel-preset-env": "^1.6.1",
+    "babel-register": "^6.26.0"
+  }
+}

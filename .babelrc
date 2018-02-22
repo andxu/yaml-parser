@@ -1,0 +1,15 @@
+{
+  "presets": [
+    ["env", {
+      "targets": {
+        "node": "8.9"
+      }
+    }]
+  ],
+  "sourceMaps": true,
+  "retainLines": false,
+  "plugins": [
+    "transform-optional-catch-binding",
+    "transform-object-rest-spread"
+  ]
+}
