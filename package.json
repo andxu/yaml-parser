@@ -1,6 +1,6 @@
 {
   "name": "node-yaml-parser",
-  "version": "0.0.1",
+  "version": "0.0.3",
   "engines": { "node" : ">8.9.3" },
   "description": "A yaml parser which converts yaml to ast.",
   "main": "index.js",
@@ -12,7 +12,7 @@
     "url": "git+https://github.com/andxu/yaml-parser.git"
   },
   "author": "Andy Xu<andxu@microsoft.com> (https://www.github.com/andxu)",
-  "license": "ISC",
+  "license": "MIT",
   "bugs": {
     "url": "https://github.com/andxu/yaml-parser/issues"
   },
