@@ -1,7 +1,8 @@
 {
-  "name": "yaml-parser",
+  "name": "node-yaml-parser",
   "version": "0.0.1",
-  "description": "A yaml parser which converts yaml file to ast.",
+  "engines": { "node" : ">8.9.3" },
+  "description": "A yaml parser which converts yaml to ast.",
   "main": "index.js",
   "scripts": {
     "build": "babel src --out-dir dist"
@@ -10,11 +11,12 @@
     "type": "git",
     "url": "git+https://github.com/andxu/yaml-parser.git"
   },
-  "author": "andxu",
+  "author": "Andy Xu<andxu@microsoft.com> (https://www.github.com/andxu)",
   "license": "ISC",
   "bugs": {
     "url": "https://github.com/andxu/yaml-parser/issues"
   },
+  "keywords": ["yaml", "ast"],
   "homepage": "https://github.com/andxu/yaml-parser#readme",
   "devDependencies": {
     "ansi-colors": "^1.1.0",
@@ -35,6 +37,6 @@
     "through2": "^2.0.3"
   },
   "dependencies": {
-    "lodash": "^4.17.5"
+
   }
 }
