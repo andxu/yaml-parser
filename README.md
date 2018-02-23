@@ -6,14 +6,16 @@ A yaml parser which converts yaml file to ast. It is very similar to JS-YAML/YAM
 
 ## Example
 It will convert the following yaml to ast:
-`foo:
+<pre>
+foo:
    key1: [1, 2]
    key2: "test"
    key3:
      - a
-     - b`
+     - b
+ </pre>
 
-`[foo] :
+<pre>[foo] :
     [key1] :
         [-] :
           [SCALAR] 1
@@ -23,7 +25,7 @@ It will convert the following yaml to ast:
     [key3] :
         [-] :
           [SCALAR] a
-          [SCALAR] b`
+          [SCALAR] b</pre>
 
 ## Local Development
 The whole project is written in javascript@es6, please refer to `https://babeljs.io/` if you have any difficulties about babel. Use `npm run build` to convert them into old javascript style which may be more friendly to old node.js versions.
