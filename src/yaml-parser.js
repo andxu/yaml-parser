@@ -11,7 +11,7 @@ import * as constant from './constant'
  * @param options
  */
 export function parse(text, options) {
-    options = options || {};
+    options = options || { tabSize: 2 };
     let input = String(text.replace(/\t/g, util.repeat(' ', options.tabSize || 2)).replace(/\r\n?|\n/, '\n'));
     if (input.length !== 0) {
 
@@ -162,7 +162,7 @@ function testDocumentSeparator(state) {
 
         ch = state.input.charCodeAt(_position);
 
-        if (ch === 0 || is_WS_OR_EOL(ch)) {
+        if (ch === 0 || util.is_WS_OR_EOL(ch)) {
             return true;
         }
     }
@@ -173,16 +173,16 @@ function testDocumentSeparator(state) {
 function readDocument(state) {
     let ch;
 
-    while ((ch = state.input.charCodeAt(state.position)) !== 0) {
+    if ((ch = state.input.charCodeAt(state.position)) !== 0) {
         skipSeparationSpace(state, true);
 
         ch = state.input.charCodeAt(state.position);
 
-        if (state.lineIndent > 0 || ch !== 0x25/* % */) {
-            break;
+        if (state.lineIndent === 0 && ch === 0x25/* % */) {
+            throw new Error('directives are not supported.');
         }
-        throw new Error('directives are not supported.');
     }
+
     skipSeparationSpace(state, true);
 
     if (state.lineIndent === 0 &&
@@ -839,7 +839,7 @@ function readPlainScalar(state, nodeIndent, withinFlowCollection) {
         following = state.input.charCodeAt(state.position + 1);
 
         if (util.is_WS_OR_EOL(following) ||
-            withinFlowCollection && is_FLOW_INDICATOR(following)) {
+            withinFlowCollection && util.is_FLOW_INDICATOR(following)) {
             return false;
         }
     }
@@ -850,7 +850,7 @@ function readPlainScalar(state, nodeIndent, withinFlowCollection) {
             following = state.input.charCodeAt(state.position + 1);
 
             if (util.is_WS_OR_EOL(following) ||
-                withinFlowCollection && is_FLOW_INDICATOR(following)) {
+                withinFlowCollection && util.is_FLOW_INDICATOR(following)) {
                 break;
             }
 
