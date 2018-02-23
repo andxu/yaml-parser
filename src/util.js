@@ -32,3 +32,40 @@ export function is_FLOW_INDICATOR(c) {
 export function repeat(str, count) {
     return str.repeat(count);
 }
+
+export function splitLines(str) {
+    return str.split(/\r\n?|\n/);
+}
+
+export function getIndentAtPosition(str, pos) {
+    while (pos > 0 && !is_EOL(str.charCodeAt(pos - 1))) {
+        pos --;
+    }
+
+    let indent = 0;
+    while (pos < str.length && str.charCodeAt(pos) === 0x20/* Space */) {
+        pos ++;
+        indent ++;
+    }
+    return indent;
+}
+
+export function getLineAtPosition(str, pos) {
+    while (pos >= 0 && !is_EOL(str.charCodeAt(pos))) {
+        pos --;
+    }
+
+    let start = pos;
+    while (pos < str.length && !is_EOL(str.charCodeAt(pos))) {
+        pos ++;
+    }
+    return str.slice(start, pos);
+}
+
+export function getLineAfterPosition(str, pos) {
+    let start = pos;
+    while (pos < str.length && !is_EOL(str.charCodeAt(pos))) {
+        pos ++;
+    }
+    return str.slice(start, pos);
+}

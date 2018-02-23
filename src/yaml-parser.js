@@ -521,7 +521,7 @@ function readBlockMapping(state, nodeIndent, flowIndent) {
                 atExplicitKey = false;
                 allowCompact = true;
                 state.position ++;
-                colonNode = newNode(state, state.position - 1, 'COLON');
+                colonNode = newNode(state, 'COLON', state.position - 1);
             } else {
                 detected = true;
                 atExplicitKey = false;
@@ -547,7 +547,7 @@ function readBlockMapping(state, nodeIndent, flowIndent) {
                 if (ch === 0x3A/* : */) {
                     ch = state.input.charCodeAt(++state.position);
 
-                    colonNode = newNode(state, state.position - 1, 'COLON');
+                    colonNode = newNode(state, 'COLON', state.position - 1);
 
                     if (!util.is_WS_OR_EOL(ch)) {
                         console.log('a whitespace character is expected after the key-value separator within a block mapping');
@@ -572,8 +572,59 @@ function readBlockMapping(state, nodeIndent, flowIndent) {
                 }
 
             } else if (detected) {
-                throw new Error('can not read a block mapping entry; a multi-line key may not be an implicit key');
+                reportError(state, 'can not read a block mapping entry; a multi-line key may not be an implicit key');
+                // recovery
+                const errorNode = state.nodes.pop();
+                const currentLine = util.getLineAfterPosition(state.input, errorNode.startPosition);
+                if (currentLine.includes(':')) {
+                    const colonPos = currentLine.lastIndexOf(':');
+                    state.position = errorNode.startPosition + colonPos;
+                    keyNode = newNode(state, 'SCALAR', errorNode.startPosition);
+                    state.position ++;
+                    colonNode = newNode(state, 'COLON', state.position - 1);
+                    const valueStart  = state.position;
+                    state.position = state.lineStart - 1;
+                    while (state.position >= 0 && util.is_EOL(state.input.charCodeAt(state.position))) {
+                        state.position --;
+                    }
+                    state.position ++;
+                    valueNode = valueStart < state.position ? newNode(state, 'SCALAR', valueStart) : null;
+                    _result.mappings.push({
+                        key: keyNode,
+                        value: valueNode,
+                        colon: colonNode, // in error recovery node, there is no colon node
+                        tags: []
+                    });
+                } else {
+                    state.position = errorNode.startPosition + currentLine.length;
+                    keyNode = newNode(state, 'SCALAR', errorNode.startPosition);
+                    const valueStart  = state.position;
+                    state.position = state.lineStart - 1;
+                    while (state.position >= 0 && util.is_EOL(state.input.charCodeAt(state.position))) {
+                        state.position --;
+                    }
 
+                    valueNode = valueStart < state.position ? newNode(state, 'SCALAR', valueStart) : null;
+                    _result.mappings.push({
+                        key: keyNode,
+                        value: valueNode,
+                        colon: colonNode, // in error recovery node, there is no colon node
+                        tags: []
+                    });
+                }
+
+
+
+                // reset state variables
+                _line = state.line;
+                state.tags = [];
+                state.position = state.lineStart;
+                skipSeparationSpace(state, false);
+
+                atExplicitKey = false;
+                allowCompact = false;
+                colonNode = keyNode = valueNode = null;
+                continue;
             } else {
                 return true; // Keep the result of `composeNode`.
             }
@@ -600,6 +651,7 @@ function readBlockMapping(state, nodeIndent, flowIndent) {
                         startPosition: keyNode.startPosition,
                         endPosition: valueNode ? valueNode.endPosition : colonNode.endPosition,
                         parent: null,
+                        indent: state.lineIndent,
                         mappings: [{
                             key: keyNode, value: valueNode,
                             colon: colonNode,
@@ -1016,4 +1068,8 @@ function readFlowCollection(state, nodeIndent) {
             readNext = false;
         }
     }
+}
+
+function reportError(state, message) {
+    //TODO, handle the error message and the location where this error is thrown
 }
