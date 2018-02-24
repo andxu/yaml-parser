@@ -1,2 +1,3 @@
 import { parse, parseWithPosition } from "./yaml-parser";
-export { parse, parseWithPosition  }
+import * as util from './util'
+export { parse, parseWithPosition, util }

@@ -1,6 +1,6 @@
 {
   "name": "node-yaml-parser",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "engines": { "node" : ">8.9.3" },
   "description": "A yaml parser which converts yaml to ast.",
   "main": "index.js",

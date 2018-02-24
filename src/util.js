@@ -99,16 +99,16 @@ export function isMappingItem(node) {
     return node && node.kind === 'PAIR';
 }
 
-export function isKey(node) {
-    return (node && node.parent
-        && ( (node.parent.key === node)
-            || (node.parent.mappings || []).find(node => node.key === node))
+export function isKey(target) {
+    return (target && target.parent
+        && ( (target.parent.key === target)
+            || (target.parent.mappings || []).find(node => node.key === target))
     );
 }
 
-export function isValue(node) {
-    return (node && node.parent
-        && ( (node.parent.value === node)
-            || (node.parent.mappings || []).find(node => node.value === node))
+export function isValue(target) {
+    return (target && target.parent
+        && ( (target.parent.value === target)
+            || (target.parent.mappings || []).find(node => node.value === target))
     );
 }
