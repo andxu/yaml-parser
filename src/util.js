@@ -78,3 +78,23 @@ export function getLineAfterPosition(str, pos) {
 export function popAll(array) {
     return array.splice(0, array.length);
 }
+
+export function isComment(node) {
+    return node && node.kind === 'COMMENT';
+}
+
+export function isBlock(node) {
+    return node && node.kind === 'BLOCK';
+}
+
+export function isMapping(node) {
+    return node && node.kind === 'MAPPING';
+}
+
+export function isArray(node) {
+    return node && node.kind === 'SEQ';
+}
+
+export function isMappingItem(node) {
+    return node && node.kind === 'PAIR';
+}

@@ -309,9 +309,9 @@ function readBlockScalar(state, nodeIndent) {
         while (!util.is_EOL(ch) && (ch !== 0)) {
             ch = state.input.charCodeAt(++state.position);
         }
-
     }
-    state.nodes.push({
+
+    let blockNode = {
         kind: "BLOCK",
         startPosition: captureStart,
         endPosition: state.position,
@@ -323,7 +323,10 @@ function readBlockScalar(state, nodeIndent) {
             endPosition: state.position,
             raw: state.input.slice(blockStartPosition, state.position)
         }
-    });
+    };
+    blockNode.blockBody.parent = blockNode;
+    blockIndicator.parent = blockNode;
+    state.nodes.push(blockNode);
     return true;
 }
 
@@ -593,6 +596,7 @@ function readBlockMapping(state, nodeIndent, flowIndent) {
                     state.position ++;
                     valueNode = valueStart < state.position ? newNode(state, 'SCALAR', valueStart) : null;
                     _result.mappings.push({
+                        parent: _result,
                         kind: "PAIR",
                         startPosition: keyNode.startPosition,
                         endPosition: state.position,
@@ -612,6 +616,7 @@ function readBlockMapping(state, nodeIndent, flowIndent) {
 
                     valueNode = valueStart < state.position ? newNode(state, 'SCALAR', valueStart) : null;
                     _result.mappings.push({
+                        parent: _result,
                         kind: "PAIR",
                         startPosition: keyNode.startPosition,
                         endPosition: state.position,
@@ -670,7 +675,7 @@ function readBlockMapping(state, nodeIndent, flowIndent) {
                         }],
                         kind: "MAPPING"
                     };
-
+                    _result.mappings[0].parent = _result;
                     keyNode.parent = _result;
                     if (valueNode) valueNode.parent = _result;
                 } else {
@@ -679,6 +684,7 @@ function readBlockMapping(state, nodeIndent, flowIndent) {
                     if (valueNode) valueNode.parent = _result;
                     _result.mappings.push({
                         kind: "PAIR",
+                        parent: _result,
                         startPosition: keyNode.startPosition,
                         endPosition: state.position,
                         key: keyNode, value: valueNode,
@@ -1051,6 +1057,7 @@ function readFlowCollection(state, nodeIndent) {
         }
         if (isMapping) {
             _result.mappings.push({
+                parent: _result,
                 kind: "PAIR",
                 key: keyNode,
                 value: valueNode,
@@ -1059,8 +1066,9 @@ function readFlowCollection(state, nodeIndent) {
                 endPosition: state.position
             });
         } else if (isPair) {
-            _result.items.push({
+            const newNode = {
                 kind: "MAPPING",
+                parent: _result,
                 startPosition: keyNode.startPosition,
                 endPosition: state.position,
                 mappings: [
@@ -1073,8 +1081,11 @@ function readFlowCollection(state, nodeIndent) {
                         endPosition: state.position
                     }
                 ]
-            });
+            };
+            newNode.mappings[0].parent = newNode;
+            _result.items.push(newNode);
         } else {
+            keyNode.parent = _result;
             _result.items.push(keyNode);
         }
 
@@ -1134,7 +1145,7 @@ function getDocumentAtPosition(documents, pos) {
     return documents.find(doc => insideNode(doc, pos));
 }
 function isSimpleNode(node) {
-    return node.kind === 'SCALAR' || node.kind === 'TAG' ||  node.kind === 'COMMENT' || node.kind === 'COLON' ;
+    return node.kind === 'SCALAR' || node.kind === 'TAG' ||  node.kind === 'COMMENT' || node.kind === 'COLON' || node.kind === 'BLOCK_INDICATOR';
 }
 
 function getNodeAtPosition(arg1, pos) {
