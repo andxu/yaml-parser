@@ -37,6 +37,11 @@ export function splitLines(str) {
     return str.split(/\r\n?|\n/);
 }
 
+export function countCharacters(str, ch) {
+    return (str.length - str.replace(new RegExp(ch,"g"), '').length) / ch.length;
+}
+
+
 export function getIndentAtPosition(str, pos) {
     while (pos > 0 && !is_EOL(str.charCodeAt(pos - 1))) {
         pos --;
@@ -68,4 +73,8 @@ export function getLineAfterPosition(str, pos) {
         pos ++;
     }
     return str.slice(start, pos);
+}
+
+export function popAll(array) {
+    return array.splice(0, array.length);
 }

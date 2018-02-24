@@ -7,12 +7,10 @@ import * as constant from './constant'
  *
  * TODO: add support for anchors
  *
- * @param text the yaml file content
- * @param options
+ * @param text the yaml text
  */
-export function parse(text, options) {
-    options = options || { tabSize: 2 };
-    let input = String(text.replace(/\t/g, util.repeat(' ', options.tabSize || 2)).replace(/\r\n?|\n/, '\n'));
+export function parse(text) {
+    let input = String(text.replace(/\r\n?|\n/, '\n'));
     if (input.length !== 0) {
 
         // Add tailing `\n` if not exists
@@ -27,6 +25,7 @@ export function parse(text, options) {
         }
     }
     const state = new State(input);
+    const lineLens = util.splitLines(state.input).map(line => line.length);
     // Use 0 as string terminator. That significantly simplifies bounds check.
     state.input += '\0';
 
@@ -42,17 +41,17 @@ export function parse(text, options) {
         const doc = {
             startPosition : docStartPosition,
             endPosition: state.position,
-            nodes: [...state.nodes],
-            comments: [...state.comments],
-            tags: [...state.tags]
+            nodes: util.popAll(state.nodes),
+            comments: util.popAll(state.comments),
+            tags: util.popAll(state.tags),
+            errors: util.popAll(state.errors)
         };
-        state.comments = [];
-        state.tags = [];
-        state.nodes = [];
         state.documents.push(doc);
     }
-    return state.documents;
+
+    return {documents: state.documents, lineLens: lineLens, input: state.input};
 }
+
 
 
 function State(input) {
@@ -65,6 +64,7 @@ function State(input) {
     this.documents = [];
     this.tags = [];
     this.nodes = [];
+    this.errors = [];
     this.comments = [];
 }
 
@@ -98,6 +98,10 @@ function skipSeparationSpace(state, allowComments) {
 
     while (ch !== 0) {
         while (util.is_WHITE_SPACE(ch)) {
+            if(ch === 0x09 /*Tab*/){
+                //TODO: add location info for errors
+                state.errors.push("Using tabs can lead to unpredictable results");
+            }
             ch = state.input.charCodeAt(++state.position);
         }
 
@@ -511,11 +515,10 @@ function readBlockMapping(state, nodeIndent, flowIndent) {
                     //TODO: more compatible version to handle this
                     throw new Error("cannot enter complex mode while it is already in complex mode.");
                 }
-                //
-                // detected = true;
-                // atExplicitKey = true;
-                // allowCompact = true;
-                // state.position ++;
+                detected = true;
+                atExplicitKey = true;
+                allowCompact = true;
+                state.position ++;
             } else if (atExplicitKey) {
                 // i.e. 0x3A/* : */ === character after the explicit key.
                 atExplicitKey = false;
@@ -590,6 +593,9 @@ function readBlockMapping(state, nodeIndent, flowIndent) {
                     state.position ++;
                     valueNode = valueStart < state.position ? newNode(state, 'SCALAR', valueStart) : null;
                     _result.mappings.push({
+                        kind: "PAIR",
+                        startPosition: keyNode.startPosition,
+                        endPosition: state.position,
                         key: keyNode,
                         value: valueNode,
                         colon: colonNode, // in error recovery node, there is no colon node
@@ -606,6 +612,9 @@ function readBlockMapping(state, nodeIndent, flowIndent) {
 
                     valueNode = valueStart < state.position ? newNode(state, 'SCALAR', valueStart) : null;
                     _result.mappings.push({
+                        kind: "PAIR",
+                        startPosition: keyNode.startPosition,
+                        endPosition: state.position,
                         key: keyNode,
                         value: valueNode,
                         colon: colonNode, // in error recovery node, there is no colon node
@@ -649,24 +658,29 @@ function readBlockMapping(state, nodeIndent, flowIndent) {
                 if (_result === null) {
                     _result = {
                         startPosition: keyNode.startPosition,
-                        endPosition: valueNode ? valueNode.endPosition : colonNode.endPosition,
                         parent: null,
                         indent: state.lineIndent,
                         mappings: [{
+                            kind: "PAIR",
+                            startPosition: keyNode.startPosition,
+                            endPosition: state.position,
                             key: keyNode, value: valueNode,
                             colon: colonNode,
                             tags: state.tags.splice(0, state.tags.length)
                         }],
-                        kind: "MAP"
+                        kind: "MAPPING"
                     };
 
                     keyNode.parent = _result;
                     if (valueNode) valueNode.parent = _result;
                 } else {
-                    _result.endPosition = valueNode ? valueNode.endPosition : colonNode.endPosition;
+
                     keyNode.parent = _result;
                     if (valueNode) valueNode.parent = _result;
                     _result.mappings.push({
+                        kind: "PAIR",
+                        startPosition: keyNode.startPosition,
+                        endPosition: state.position,
                         key: keyNode, value: valueNode,
                         colon: colonNode,
                         tags: state.tags.splice(0, state.tags.length)
@@ -702,6 +716,7 @@ function readBlockMapping(state, nodeIndent, flowIndent) {
 
     // Expose the resulting mapping.
     if (detected) {
+        _result.endPosition = state.position;
         state.nodes.push(_result);
     }
 
@@ -946,7 +961,7 @@ function readPlainScalar(state, nodeIndent, withinFlowCollection) {
     if (raw.trim().length) {
         const node = addNode(state, 'SCALAR', captureStart);
         node.plainScalar = true;
-        node.indent = _lineIndent;
+        node.indent = state.lineIndent;
         return true;
     }
 
@@ -1036,9 +1051,12 @@ function readFlowCollection(state, nodeIndent) {
         }
         if (isMapping) {
             _result.mappings.push({
+                kind: "PAIR",
                 key: keyNode,
                 value: valueNode,
-                colon: colonNode
+                colon: colonNode,
+                startPosition: keyNode.startPosition,
+                endPosition: state.position
             });
         } else if (isPair) {
             _result.items.push({
@@ -1047,9 +1065,12 @@ function readFlowCollection(state, nodeIndent) {
                 endPosition: state.position,
                 mappings: [
                     {
+                        kind: "PAIR",
                         key: keyNode,
                         colon: colonNode,
-                        value: valueNode
+                        value: valueNode,
+                        startPosition: keyNode.startPosition,
+                        endPosition: state.position
                     }
                 ]
             });
@@ -1070,6 +1091,82 @@ function readFlowCollection(state, nodeIndent) {
     }
 }
 
+/**
+ * Construct the ast for the yaml text, and find the ast at the given position
+ *
+ * @param text the yaml text
+ * @param lineNumber the zero-based line number
+ * @param columnNumber the zero-based number in line
+ */
+export function parseWithPosition(text, lineNumber, columnNumber) {
+    let {documents, lineLens } = parse(text);
+
+    let newPos = getPositionAtInput(lineLens, lineNumber, columnNumber);
+    let currentDoc = getDocumentAtPosition(documents, newPos);
+    if (currentDoc.errors.find(error => error.includes('tabs can lead to unpredictable results'))) {
+        throw new Error("Cannot parse position in yaml with tab characters.");
+    }
+    let match;
+
+    if (columnNumber > 0) {
+        match = getNodeAtPosition(currentDoc.nodes, newPos - 1);
+    }
+    if (!match) {
+        match = getNodeAtPosition(currentDoc.nodes, newPos);
+    }
+    return { match, documents };
+}
+
 function reportError(state, message) {
     //TODO, handle the error message and the location where this error is thrown
+}
+
+function getPositionAtInput(lineLens, lineNumber, columnNumber) {
+
+    let pos = 0;
+    for (let i = 0; i < lineNumber; i ++) {
+        pos += lineLens[i] + 1;
+    }
+    return pos + columnNumber;
+}
+
+function getDocumentAtPosition(documents, pos) {
+    return documents.find(doc => insideNode(doc, pos));
+}
+function isSimpleNode(node) {
+    return node.kind === 'SCALAR' || node.kind === 'TAG' ||  node.kind === 'COMMENT' || node.kind === 'COLON' ;
+}
+
+function getNodeAtPosition(arg1, pos) {
+    let nodes;
+    if (Array.isArray(arg1)) {
+        nodes = arg1;
+    } else {
+        nodes = [arg1];
+    }
+    for(let node of nodes) {
+        if (!node || !insideNode(node, pos)) {
+            continue;
+        }
+        let find;
+        if (isSimpleNode(node)) {
+            return node;
+        }
+
+        if (node.kind === 'MAPPING') {
+            find = getNodeAtPosition(node.mappings, pos);
+        } else if (node.kind === 'SEQ') {
+            find = getNodeAtPosition(node.items, pos);
+        } else if (node.kind === 'BLOCK') {
+            find = getNodeAtPosition([node.blockIndicator, node.blockBody], pos);
+        } else if (node.kind === 'PAIR') {
+            find = getNodeAtPosition([node.key, node.colon, node.value, ...node.tags], pos);
+        }
+
+        return find;
+    }
+}
+
+function insideNode(node, pos) {
+    return node.startPosition <= pos && node.endPosition > pos;
 }
