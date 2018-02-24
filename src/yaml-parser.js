@@ -1113,19 +1113,19 @@ export function parseWithPosition(text, lineNumber, columnNumber) {
     let {documents, lineLens } = parse(text);
 
     let newPos = getPositionAtInput(lineLens, lineNumber, columnNumber);
-    let currentDoc = getDocumentAtPosition(documents, newPos);
-    if (currentDoc.errors.find(error => error.includes('tabs can lead to unpredictable results'))) {
+    let matchedDocument = getDocumentAtPosition(documents, newPos);
+    if (matchedDocument.errors.find(error => error.includes('tabs can lead to unpredictable results'))) {
         throw new Error("Cannot parse position in yaml with tab characters.");
     }
     let match;
 
     if (columnNumber > 0) {
-        match = getNodeAtPosition(currentDoc.nodes, newPos - 1);
+        match = getNodeAtPosition(matchedDocument.nodes, newPos - 1);
     }
     if (!match) {
-        match = getNodeAtPosition(currentDoc.nodes, newPos);
+        match = getNodeAtPosition(matchedDocument.nodes, newPos);
     }
-    return { match, documents };
+    return { match, documents, matchedDocument: matchedDocument };
 }
 
 function reportError(state, message) {
@@ -1145,7 +1145,8 @@ function getDocumentAtPosition(documents, pos) {
     return documents.find(doc => insideNode(doc, pos));
 }
 function isSimpleNode(node) {
-    return node.kind === 'SCALAR' || node.kind === 'TAG' ||  node.kind === 'COMMENT' || node.kind === 'COLON' || node.kind === 'BLOCK_INDICATOR';
+    return node.kind === 'SCALAR' || node.kind === 'TAG' ||  node.kind === 'COMMENT' || node.kind === 'COLON'
+        || node.kind === 'BLOCK_INDICATOR' || node.kind === 'DOC_START' || node.kind === 'DOC_END' ;
 }
 
 function getNodeAtPosition(arg1, pos) {

@@ -98,3 +98,17 @@ export function isArray(node) {
 export function isMappingItem(node) {
     return node && node.kind === 'PAIR';
 }
+
+export function isKey(node) {
+    return (node && node.parent
+        && ( (node.parent.key === node)
+            || (node.parent.mappings || []).find(node => node.key === node))
+    );
+}
+
+export function isValue(node) {
+    return (node && node.parent
+        && ( (node.parent.value === node)
+            || (node.parent.mappings || []).find(node => node.value === node))
+    );
+}
