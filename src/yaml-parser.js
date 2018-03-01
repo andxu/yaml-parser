@@ -10,7 +10,7 @@ import * as constant from './constant'
  * @param text the yaml text
  */
 export function parse(text) {
-    let input = String(text.replace(/\r\n?|\n/, '\n'));
+    let input = String(text.replace(/\r\n?|\n/g, '\n'));
     if (input.length !== 0) {
 
         // Add tailing `\n` if not exists
@@ -1110,75 +1110,29 @@ function readFlowCollection(state, nodeIndent) {
  * @param columnNumber the zero-based number in line
  */
 export function parseWithPosition(text, lineNumber, columnNumber) {
-    let {documents, lineLens } = parse(text);
+    let { documents, lineLens } = parse(text);
+    return { documents, ...findNodeAtPosition(documents, lineLens, lineNumber, columnNumber) };
+}
 
-    let newPos = getPositionAtInput(lineLens, lineNumber, columnNumber);
-    let matchedDocument = getDocumentAtPosition(documents, newPos);
+export function findNodeAtPosition(documents, lineLens, lineNumber, columnNumber) {
+    let newPos = util.convertPosition(lineLens, lineNumber, columnNumber);
+    let matchedDocument = util.getDocumentAtPosition(documents, newPos);
     if (matchedDocument.errors.find(error => error.includes('tabs can lead to unpredictable results'))) {
         throw new Error("Cannot parse position in yaml with tab characters.");
     }
-    let match;
 
+    let matchedNode;
     if (columnNumber > 0) {
-        match = getNodeAtPosition(matchedDocument.nodes, newPos - 1);
+        matchedNode = util.getNodeAtPosition(matchedDocument.nodes, newPos - 1);
     }
-    if (!match) {
-        match = getNodeAtPosition(matchedDocument.nodes, newPos);
+    if (!matchedNode) {
+        matchedNode = util.getNodeAtPosition(matchedDocument.nodes, newPos);
     }
-    return { match, documents, matchedDocument: matchedDocument };
+    return { matchedNode, matchedDocument };
 }
+
 
 function reportError(state, message) {
     //TODO, handle the error message and the location where this error is thrown
 }
 
-function getPositionAtInput(lineLens, lineNumber, columnNumber) {
-
-    let pos = 0;
-    for (let i = 0; i < lineNumber; i ++) {
-        pos += lineLens[i] + 1;
-    }
-    return pos + columnNumber;
-}
-
-function getDocumentAtPosition(documents, pos) {
-    return documents.find(doc => insideNode(doc, pos));
-}
-function isSimpleNode(node) {
-    return node.kind === 'SCALAR' || node.kind === 'TAG' ||  node.kind === 'COMMENT' || node.kind === 'COLON'
-        || node.kind === 'BLOCK_INDICATOR' || node.kind === 'DOC_START' || node.kind === 'DOC_END' ;
-}
-
-function getNodeAtPosition(arg1, pos) {
-    let nodes;
-    if (Array.isArray(arg1)) {
-        nodes = arg1;
-    } else {
-        nodes = [arg1];
-    }
-    for(let node of nodes) {
-        if (!node || !insideNode(node, pos)) {
-            continue;
-        }
-        let find;
-        if (isSimpleNode(node)) {
-            return node;
-        }
-
-        if (node.kind === 'MAPPING') {
-            find = getNodeAtPosition(node.mappings, pos);
-        } else if (node.kind === 'SEQ') {
-            find = getNodeAtPosition(node.items, pos);
-        } else if (node.kind === 'BLOCK') {
-            find = getNodeAtPosition([node.blockIndicator, node.blockBody], pos);
-        } else if (node.kind === 'PAIR') {
-            find = getNodeAtPosition([node.key, node.colon, node.value, ...node.tags], pos);
-        }
-
-        return find;
-    }
-}
-
-function insideNode(node, pos) {
-    return node.startPosition <= pos && node.endPosition > pos;
-}

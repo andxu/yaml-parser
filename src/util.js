@@ -112,3 +112,58 @@ export function isValue(target) {
             || (target.parent.mappings || []).find(node => node.value === target))
     );
 }
+
+
+
+export function convertPosition(lineLens, lineNumber, columnNumber) {
+
+    let pos = 0;
+    for (let i = 0; i < lineNumber; i ++) {
+        pos += lineLens[i] + 1;
+    }
+    return pos + columnNumber;
+}
+
+export function getDocumentAtPosition(documents, pos) {
+    return documents.find(doc => insideNode(doc, pos));
+}
+
+export function getNodeAtPosition(arg1, pos) {
+    let nodes;
+    if (Array.isArray(arg1)) {
+        nodes = arg1;
+    } else {
+        nodes = [arg1];
+    }
+    for(let node of nodes) {
+        if (!node || !insideNode(node, pos)) {
+            continue;
+        }
+        let find;
+        if (isSimpleNode(node)) {
+            return node;
+        }
+
+        if (node.kind === 'MAPPING') {
+            find = getNodeAtPosition(node.mappings, pos);
+        } else if (node.kind === 'SEQ') {
+            find = getNodeAtPosition(node.items, pos);
+        } else if (node.kind === 'BLOCK') {
+            find = getNodeAtPosition([node.blockIndicator, node.blockBody], pos);
+        } else if (node.kind === 'PAIR') {
+            find = getNodeAtPosition([node.key, node.colon, node.value, ...node.tags], pos);
+        }
+
+        return find;
+    }
+}
+
+function isSimpleNode(node) {
+    return node.kind === 'SCALAR' || node.kind === 'TAG' ||  node.kind === 'COMMENT' || node.kind === 'COLON'
+        || node.kind === 'BLOCK_INDICATOR' || node.kind === 'DOC_START' || node.kind === 'DOC_END' ;
+}
+
+
+function insideNode(node, pos) {
+    return node.startPosition <= pos && node.endPosition > pos;
+}
