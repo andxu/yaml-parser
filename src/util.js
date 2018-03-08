@@ -167,3 +167,140 @@ function isSimpleNode(node) {
 function insideNode(node, pos) {
     return node.startPosition <= pos && node.endPosition > pos;
 }
+
+
+let simpleEscapeMap = new Array(256);
+let simpleEscapeCheck = new Array(256); // integer, for fast access
+
+function simpleEscapeSequence(c) {
+  return (c === 0x30/* 0 */) ? '\x00' :
+        (c === 0x61/* a */) ? '\x07' :
+        (c === 0x62/* b */) ? '\x08' :
+        (c === 0x74/* t */) ? '\x09' :
+        (c === 0x09/* Tab */) ? '\x09' :
+        (c === 0x6E/* n */) ? '\x0A' :
+        (c === 0x76/* v */) ? '\x0B' :
+        (c === 0x66/* f */) ? '\x0C' :
+        (c === 0x72/* r */) ? '\x0D' :
+        (c === 0x65/* e */) ? '\x1B' :
+        (c === 0x20/* Space */) ? ' ' :
+        (c === 0x22/* " */) ? '\x22' :
+        (c === 0x2F/* / */) ? '/' :
+        (c === 0x5C/* \ */) ? '\x5C' :
+        (c === 0x4E/* N */) ? '\x85' :
+        (c === 0x5F/* _ */) ? '\xA0' :
+        (c === 0x4C/* L */) ? '\u2028' :
+        (c === 0x50/* P */) ? '\u2029' : '';
+}
+
+for (let i = 0; i < 256; i++) {
+    simpleEscapeMap[i] = simpleEscapeSequence(i);
+    simpleEscapeCheck[i] = simpleEscapeMap[i] ? 1 : 0;
+}
+
+
+function fromHexCode(c) {
+    let lc;
+
+    if ((0x30/* 0 */ <= c) && (c <= 0x39/* 9 */)) {
+        return c - 0x30;
+    }
+
+    /*eslint-disable no-bitwise*/
+    lc = c | 0x20;
+
+    if ((0x61/* a */ <= lc) && (lc <= 0x66/* f */)) {
+        return lc - 0x61 + 10;
+    }
+
+    return -1;
+}
+
+function escapedHexLen(c) {
+    if (c === 0x78/* x */) { return 2; }
+    if (c === 0x75/* u */) { return 4; }
+    if (c === 0x55/* U */) { return 8; }
+    return 0;
+}
+
+function fromDecimalCode(c) {
+    if ((0x30/* 0 */ <= c) && (c <= 0x39/* 9 */)) {
+        return c - 0x30;
+    }
+
+    return -1;
+}
+function charFromCodepoint(c) {
+    if (c <= 0xFFFF) {
+        return String.fromCharCode(c);
+    }
+    // Encode UTF-16 surrogate pair
+    // https://en.wikipedia.org/wiki/UTF-16#Code_points_U.2B010000_to_U.2B10FFFF
+    return String.fromCharCode(((c - 0x010000) >> 10) + 0xD800,
+        ((c - 0x010000) & 0x03FF) + 0xDC00);
+}
+
+export function getScalarValue(node) {
+    if (node.kind === 'SCALAR') {
+        const buffer = new Buffer(node.raw.length);
+        let tmp, hexLength, hexResult;
+        if (node.doubleQuoted) {
+            let ch;
+            // [i to length - 1] to skip two quotes
+            for (let i = 1; i < node.raw.length - 1; i++ ){
+                ch = node.raw.charCodeAt(i);
+                if (0x5C/* \ */ === ch) {
+                    ch = node.raw.charCodeAt(++i);
+                    if (is_EOL(ch)) {
+                        // TODO: handle multiple line spaces.
+                        i++;
+                    } else if (ch < 256 && simpleEscapeCheck(ch)) {
+                        buffer.push(simpleEscapeMap[ch]);
+                        i++;
+                    } else if ((tmp = escapedHexLen(ch)) > 0) {
+                        hexLength = tmp;
+                        hexResult = 0;
+
+                        for (; hexLength > 0 && i < node.raw.length - 1; hexLength--) {
+                            ch = node.raw.charCodeAt(++i);
+
+                            if ((tmp = fromHexCode(ch)) >= 0) {
+                                hexResult = (hexResult << 4) + tmp;
+
+                            } else {
+                                hexResult = -1;
+                                break;
+                            }
+                        }
+
+                        buffer.push(hexResult < 0 ? '?' : charFromCodepoint(hexResult));
+                    } else {
+                        // instead reporting: unknown escape sequence
+                        buffer.push('?');
+                    }
+                }
+            }
+            return buffer.toString();
+        } else if (node.singleQuoted) {
+            let ch;
+            // [i to length - 1] to skip two quotes
+            for (let i = 1; i < node.raw.length - 1; i++ ) {
+                ch = node.raw.charCodeAt(i);
+                if (0x27/* ' */ === ch) {
+                    if (i < node.raw.length - 1 && (0x27/* ' */ === node.raw.charCodeAt(i + 1))) {
+                        buffer.push('\'');
+                        i++;
+                    }
+                } else if (is_EOL(ch)) {
+                    buffer.push(' ');
+                } else {
+                    buffer.push(ch);
+                }
+            }
+        } else {
+            return node.raw;
+        }
+    }
+    return undefined;
+
+}

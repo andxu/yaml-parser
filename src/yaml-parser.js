@@ -49,7 +49,7 @@ export function parse(text) {
         state.documents.push(doc);
     }
 
-    return {documents: state.documents, lineLens: lineLens, input: state.input};
+    return {documents: state.documents, lineLengths: lineLens, input: state.input};
 }
 
 
@@ -1110,8 +1110,8 @@ function readFlowCollection(state, nodeIndent) {
  * @param columnNumber the zero-based number in line
  */
 export function parseWithPosition(text, lineNumber, columnNumber) {
-    let { documents, lineLens } = parse(text);
-    return { documents, ...findNodeAtPosition(documents, lineLens, lineNumber, columnNumber) };
+    let { documents, lineLengths } = parse(text);
+    return { documents, ...findNodeAtPosition(documents, lineLengths, lineNumber, columnNumber) };
 }
 
 export function findNodeAtPosition(documents, lineLens, lineNumber, columnNumber) {
@@ -1123,10 +1123,18 @@ export function findNodeAtPosition(documents, lineLens, lineNumber, columnNumber
 
     let matchedNode;
     if (columnNumber > 0) {
-        matchedNode = util.getNodeAtPosition(matchedDocument.nodes, newPos - 1);
+        matchedNode = util.getNodeAtPosition(matchedDocument.comments, newPos - 1);
+        if (!matchedNode) {
+            matchedNode = util.getNodeAtPosition(matchedDocument.nodes, newPos - 1);
+        }
+
     }
     if (!matchedNode) {
-        matchedNode = util.getNodeAtPosition(matchedDocument.nodes, newPos);
+        matchedNode = util.getNodeAtPosition(matchedDocument.comments, newPos);
+        if (!matchedNode) {
+            matchedNode = util.getNodeAtPosition(matchedDocument.nodes, newPos);
+        }
+
     }
     return { matchedNode, matchedDocument };
 }
