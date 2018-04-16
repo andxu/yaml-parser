@@ -18,8 +18,13 @@ export function parse(text) {
                 let input = String(text.replace(/\r\n?|\n/g, '\n'));
                 const part1 = input.slice(0, error.recoverable.position);
                 const part2 = input.slice(error.recoverable.position);
-                return parseInternal([part1, error.recoverable.insertText, part2].join(''));
-            } else {
+                try {
+                    return parseInternal([part1, error.recoverable.insertText, part2].join(''));
+                } catch(error2) {
+                        throw error;
+                }
+            }
+             else {
                 throw 'invalid recoverable type';
             }
         } else {
@@ -606,7 +611,13 @@ function readBlockMapping(state, nodeIndent, flowIndent) {
                     allowCompact = false;
                     keyNode = state.nodes.pop();
                 } else if (detected) {
-                    throw new Error('can not read an implicit mapping pair; a colon is missed');
+                    const error = new EvalError('can not read an implicit mapping pair; a colon is missed');
+                    error.recoverable = {
+                        type: 'insert',
+                        position: findLast(state.input, state.position, '\n'),
+                        insertText: ':'
+                    };
+                    throw error;
 
                 } else {
                     return true; // Keep the result of `composeNode`.
