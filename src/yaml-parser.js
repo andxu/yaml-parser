@@ -10,6 +10,25 @@ import * as constant from './constant'
  * @param text the yaml text
  */
 export function parse(text) {
+    try {
+        return parseInternal(text);
+    } catch (error) {
+        if (error instanceof EvalError && error.recoverable) {
+            if (error.recoverable.type === 'insert') {
+                let input = String(text.replace(/\r\n?|\n/g, '\n'));
+                const part1 = input.slice(0, error.recoverable.position);
+                const part2 = input.slice(error.recoverable.position);
+                return parseInternal([part1, error.recoverable.insertText, part2].join(''));
+            } else {
+                throw 'invalid recoverable type';
+            }
+        } else {
+            throw error;
+        }
+    }
+}
+
+function parseInternal(text) {
     let input = String(text.replace(/\r\n?|\n/g, '\n'));
     if (input.length !== 0) {
 
@@ -485,7 +504,17 @@ function readDoubleQuotedScalar(state) {
     throw new Error('unexpected end of the stream within a double quoted scalar');
 }
 
+class EvalError extends Error {
+    constructor(message) {
+        super(message);
+    }
+}
 
+function findLast(text, current, charactor) {
+   let i = current;
+   for (; i >=0 && text.charAt(i) !== charactor; i--);
+   return i;
+}
 
 function readBlockMapping(state, nodeIndent, flowIndent) {
     let following,
@@ -532,7 +561,13 @@ function readBlockMapping(state, nodeIndent, flowIndent) {
                 detected = true;
                 atExplicitKey = false;
                 allowCompact = true;
-                throw new Error('incomplete explicit mapping pair; a key node is missed; or followed by a non-tabulated empty line');
+                const error = new EvalError('incomplete explicit mapping pair; a key node is missed; or followed by a non-tabulated empty line');
+                error.recoverable = {
+                    type: 'insert',
+                    position: findLast(state.input, state.position, '\n'),
+                    insertText: ':'
+                };
+                throw error;
             }
 
 
